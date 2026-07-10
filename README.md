@@ -29,7 +29,7 @@ Features of the app as a whole:
 
 The feature included here (along with some surrounding classes) is the opening screen that displays the list of soundboards. A couple of notable parts of this screen are:
 
-- Snackbar messages in place of Toasts. I chose Snackbars as these are more accessible than Toast messages. They are part of the view/composition hierarchy, whereas Toasts are displayed outside of this and so never get read out loud.
+- Snackbar messages in place of Toasts. I chose Snackbars as these are more accessible than Toast messages. They are part of the view/composition hierarchy, whereas Toasts are displayed outside of this and so never get read out loud if the user is using something like TalkBack. 
 - A scan is performed to detect whether audio shown in the DB is missing from the app file storage. This would indicate that maybe the user has upgraded their device, and we need to scan the audio on the device to retreive anything missing. 
 
 ## Testing
