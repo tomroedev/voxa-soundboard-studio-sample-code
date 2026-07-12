@@ -15,7 +15,7 @@ class FakeSoundboardRepository : SoundboardRepository {
     var lastDeletedId: Long? = null
     var lastUpdatedName: Pair<Long, String>? = null
     var lastPositionOrder: List<Long>? = null
-    
+
     var exceptionToThrow: Exception? = null
     var insertGate: CompletableDeferred<Unit>? = null
 
@@ -62,11 +62,11 @@ class FakeSoundboardRepository : SoundboardRepository {
         lastPositionOrder = soundboardIdsInOrder
     }
 
-    override suspend fun createStarterBoard(): Long {
+    override suspend fun createStarterBoard(name: String): Long {
         val id = nextId++
         val starterBoard = Soundboard(
             id = id,
-            name = "Starter Sounds",
+            name = name,
             isStarterBoard = true,
             starterBoardVersion = 1,
             position = soundboardsFlow.value.size
@@ -82,4 +82,6 @@ class FakeSoundboardRepository : SoundboardRepository {
     override suspend fun sortSoundsByNameAscending(soundboardId: Long) = Unit
 
     override suspend fun getSoundboardCountForSound(soundId: Long): Int = 0
+
+    override suspend fun getAllSoundboardsCount(): Int = 0
 }
