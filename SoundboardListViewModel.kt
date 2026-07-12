@@ -11,17 +11,19 @@ import com.voxasoundboard.app.audio.SoundKey
 import com.voxasoundboard.app.audio.SoundPlayer
 import com.voxasoundboard.app.data.db.entities.GeneralUiSettings
 import com.voxasoundboard.app.data.db.entities.Soundboard
+import com.voxasoundboard.app.data.di.IoDispatcher
 import com.voxasoundboard.app.data.repositories.GeneralUiSettingsRepository
 import com.voxasoundboard.app.data.repositories.ProRepository
+import com.voxasoundboard.app.data.repositories.SoundRepository
 import com.voxasoundboard.app.data.repositories.SoundboardRepository
 import com.voxasoundboard.app.monitoring.CrashReporter
-import com.voxasoundboard.app.sync.DetectMissingAudioUseCase
 import com.voxasoundboard.app.sync.RestoreAudioUseCase
 import com.voxasoundboard.app.sync.RestoreResult
 import com.voxasoundboard.app.ui.features.soundboardlist.model.SoundboardListScreenUserMessage
 import com.voxasoundboard.app.ui.models.ProTier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +35,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -42,8 +46,9 @@ class SoundboardListViewModel @Inject constructor(
     private val setupStarterBoardUseCase: SetupStarterBoardUseCase,
     private val deleteSoundboardUseCase: DeleteSoundboardUseCase,
     private val soundboardRepo: SoundboardRepository,
+    private val soundRepo: SoundRepository,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     private val soundPlayer: SoundPlayer,
-    private val detectMissingAudioUseCase: DetectMissingAudioUseCase,
     private val restoreAudioUseCase: RestoreAudioUseCase,
     private val analyticsTracker: AnalyticsTracker,
     private val crashReporter: CrashReporter
@@ -129,10 +134,15 @@ class SoundboardListViewModel @Inject constructor(
         detectMissingAudio()
     }
 
+    private suspend fun countMissingSounds(): Int = withContext(ioDispatcher) {
+        soundRepo.getAllImportedSounds()
+            .count { sound -> !File(sound.fileName).exists() }
+    }
+
     private fun detectMissingAudio() {
         viewModelScope.launch {
             try {
-                _missingSoundCount.value = detectMissingAudioUseCase()
+                _missingSoundCount.value = countMissingSounds()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -156,7 +166,7 @@ class SoundboardListViewModel @Inject constructor(
             } finally {
                 // Re-check so the Dialog reflects whatever is still missing after the scan.
                 try {
-                    _missingSoundCount.value = detectMissingAudioUseCase()
+                    _missingSoundCount.value = countMissingSounds()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
