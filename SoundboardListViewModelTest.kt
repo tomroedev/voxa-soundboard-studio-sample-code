@@ -18,6 +18,7 @@ import com.voxasoundboard.app.sync.RestoreResult
 import com.voxasoundboard.app.ui.features.soundboardlist.model.SoundboardListScreenUserMessage
 import com.voxasoundboard.app.util.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -35,6 +36,11 @@ class SoundboardListViewModelTest {
     private val fakeSoundPlayer = FakeSoundPlayer()
     private val fakeAnalyticsTracker = AnalyticsTracker { _, _ -> }
     private val fakeCrashReporter = FakeCrashReporter()
+
+    private val soundboardOne = Soundboard(id = 0L, name = "A", position = 0)
+    private val soundboardTwo = Soundboard(id = 1L, name = "B", position = 1)
+    private val soundboardThree = Soundboard(id = 2L, name = "C", position = 2)
+    private val listOfThreeSoundboards = listOf(soundboardOne, soundboardTwo, soundboardThree)
 
     private lateinit var viewModel: SoundboardListViewModel
 
@@ -70,15 +76,10 @@ class SoundboardListViewModelTest {
 
     @Test
     fun `soundboards reflects repository emissions`() = runTest {
-        val boards = listOf(
-            Soundboard(id = 1, name = "Board A", position = 0),
-            Soundboard(id = 2, name = "Board B", position = 1)
-        )
-
-        viewModel.soundboards.test {
-            awaitItem() // initial empty
-            fakeRepo.soundboardsFlow.emit(boards)
-            assertThat(awaitItem()).isEqualTo(boards)
+      viewModel.soundboards.test {
+            assertThat(awaitItem()).isEmpty()
+            fakeRepo.soundboardsFlow.emit(listOfThreeSoundboards)
+            assertThat(awaitItem()).isEqualTo(listOfThreeSoundboards)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -86,7 +87,7 @@ class SoundboardListViewModelTest {
     @Test
     fun `soundboards updates when a board is added`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // initial empty
+            assertThat(awaitItem()).isEmpty()
             viewModel.addSoundboard()
             assertThat(awaitItem()).hasSize(1)
             cancelAndIgnoreRemainingEvents()
@@ -96,10 +97,10 @@ class SoundboardListViewModelTest {
     @Test
     fun `soundboards updates when a board is deleted`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // empty
-            fakeRepo.soundboardsFlow.emit(listOf(Soundboard(id = 1, name = "A", position = 0)))
-            awaitItem() // [A]
-            viewModel.deleteSoundboard(1L)
+            assertThat(awaitItem()).isEmpty()
+            fakeRepo.soundboardsFlow.emit(listOf(soundboardOne))
+            assertThat(awaitItem()).containsExactly(soundboardOne)
+            viewModel.deleteSoundboard(soundboardOne.id)
             assertThat(awaitItem()).isEmpty()
             cancelAndIgnoreRemainingEvents()
         }
@@ -121,7 +122,7 @@ class SoundboardListViewModelTest {
     fun `setEditingSoundboardId can be cleared back to null`() = runTest {
         viewModel.setEditingSoundboardId(1L)
         viewModel.editingSoundboardId.test {
-            awaitItem() // 1L
+            assertThat(awaitItem()).isEqualTo(1L)
             viewModel.setEditingSoundboardId(null)
             assertThat(awaitItem()).isNull()
             cancelAndIgnoreRemainingEvents()
@@ -142,6 +143,7 @@ class SoundboardListViewModelTest {
         assertThat(viewModel.editingSoundboardId.value).isEqualTo(fakeRepo.lastInsertedId)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `addSoundboard ignores a second call while the first insert is still in flight`() = runTest {
         val gate = CompletableDeferred<Unit>()
@@ -182,11 +184,11 @@ class SoundboardListViewModelTest {
 
     @Test
     fun `deleteSoundboard removes the board from the repo`() = runTest {
-        fakeRepo.soundboardsFlow.emit(listOf(Soundboard(id = 1, name = "A", position = 0)))
+        fakeRepo.soundboardsFlow.emit(listOf(soundboardOne))
 
-        viewModel.deleteSoundboard(1L)
+        viewModel.deleteSoundboard(soundboardOne.id)
 
-        assertThat(fakeRepo.lastDeletedId).isEqualTo(1L)
+        assertThat(fakeRepo.lastDeletedId).isEqualTo(soundboardOne.id)
         assertThat(fakeRepo.soundboardsFlow.value).isEmpty()
     }
 
@@ -238,21 +240,17 @@ class SoundboardListViewModelTest {
     @Test
     fun `moveSoundboard reorders the list`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // empty
+            assertThat(awaitItem()).isEmpty()
 
-            fakeRepo.soundboardsFlow.emit(listOf(
-                Soundboard(id = 1, name = "A", position = 0),
-                Soundboard(id = 2, name = "B", position = 1),
-                Soundboard(id = 3, name = "C", position = 2)
-            ))
+            fakeRepo.soundboardsFlow.emit(listOfThreeSoundboards)
 
             assertThat(awaitItem().map { it.name })
-                .containsExactly("A", "B", "C").inOrder()
+                .containsExactly(soundboardOne.name, soundboardTwo.name, soundboardThree.name).inOrder()
 
             viewModel.moveSoundboard(fromIndex = 0, toIndex = 2)
 
             assertThat(awaitItem().map { it.name })
-                .containsExactly("B", "C", "A").inOrder()
+                .containsExactly(soundboardTwo.name, soundboardThree.name, soundboardOne.name).inOrder()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -260,12 +258,9 @@ class SoundboardListViewModelTest {
     @Test
     fun `moveSoundboard with same fromIndex and toIndex is a no-op`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // empty
-            fakeRepo.soundboardsFlow.emit(listOf(
-                Soundboard(id = 1, name = "A", position = 0),
-                Soundboard(id = 2, name = "B", position = 1)
-            ))
-            awaitItem() // A, B
+            assertThat(awaitItem()).isEmpty()
+            fakeRepo.soundboardsFlow.emit(listOf(soundboardOne, soundboardTwo))
+            assertThat(awaitItem().map { it.name }).containsExactly(soundboardOne.name, soundboardTwo.name).inOrder()
 
             viewModel.moveSoundboard(fromIndex = 1, toIndex = 1)
 
@@ -277,9 +272,9 @@ class SoundboardListViewModelTest {
     @Test
     fun `moveSoundboard with out-of-bounds toIndex is a no-op`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // empty
-            fakeRepo.soundboardsFlow.emit(listOf(Soundboard(id = 1, name = "A", position = 0)))
-            awaitItem() // A
+            assertThat(awaitItem()).isEmpty()
+            fakeRepo.soundboardsFlow.emit(listOf(soundboardOne))
+            assertThat(awaitItem().map { it.name }).containsExactly(soundboardOne.name)
 
             viewModel.moveSoundboard(fromIndex = 0, toIndex = 99)
 
@@ -291,19 +286,17 @@ class SoundboardListViewModelTest {
     @Test
     fun `moveSoundboard preserves subsequent moves within a drag session`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // empty
-            fakeRepo.soundboardsFlow.emit(listOf(
-                Soundboard(id = 1, name = "A", position = 0),
-                Soundboard(id = 2, name = "B", position = 1),
-                Soundboard(id = 3, name = "C", position = 2)
-            ))
-            awaitItem() // A, B, C
-
-            viewModel.moveSoundboard(fromIndex = 0, toIndex = 1) // B, A, C
-            awaitItem()
-            viewModel.moveSoundboard(fromIndex = 2, toIndex = 0) // C, B, A
+            assertThat(awaitItem()).isEmpty()
+            fakeRepo.soundboardsFlow.emit(listOfThreeSoundboards)
             assertThat(awaitItem().map { it.name })
-                .containsExactly("C", "B", "A").inOrder()
+                .containsExactly(soundboardOne.name, soundboardTwo.name, soundboardThree.name).inOrder()
+
+            viewModel.moveSoundboard(fromIndex = 0, toIndex = 1)
+            assertThat(awaitItem().map { it.name })
+                .containsExactly(soundboardTwo.name, soundboardOne.name, soundboardThree.name).inOrder()
+            viewModel.moveSoundboard(fromIndex = 2, toIndex = 0)
+            assertThat(awaitItem().map { it.name })
+                .containsExactly(soundboardThree.name, soundboardTwo.name, soundboardOne.name).inOrder()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -313,35 +306,29 @@ class SoundboardListViewModelTest {
     @Test
     fun `persistSoundboardOrder sends reordered ids to the repo`() = runTest {
         viewModel.soundboards.test {
-            awaitItem() // empty
-            fakeRepo.soundboardsFlow.emit(listOf(
-                Soundboard(id = 1, name = "A", position = 0),
-                Soundboard(id = 2, name = "B", position = 1)
-            ))
-            awaitItem() // A, B
+            assertThat(awaitItem()).isEmpty()
+            fakeRepo.soundboardsFlow.emit(listOf(soundboardOne, soundboardTwo))
+            assertThat(awaitItem().map { it.name }).containsExactly(soundboardOne.name, soundboardTwo.name).inOrder()
             viewModel.moveSoundboard(fromIndex = 0, toIndex = 1)
-            awaitItem() // B, A (drag state)
+            assertThat(awaitItem().map { it.name }).containsExactly(soundboardTwo.name, soundboardOne.name).inOrder()
 
             viewModel.persistSoundboardOrder()
 
-            assertThat(fakeRepo.lastPositionOrder).isEqualTo(listOf(2L, 1L))
+            assertThat(fakeRepo.lastPositionOrder).isEqualTo(listOf(soundboardTwo.id, soundboardOne.id))
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
     fun `persistSoundboardOrder clears drag state`() = runTest {
-        val boards = listOf(
-            Soundboard(id = 1, name = "A", position = 0),
-            Soundboard(id = 2, name = "B", position = 1)
-        )
+        val boards = listOf(soundboardOne, soundboardTwo)
 
         viewModel.soundboards.test {
-            awaitItem() // empty
+            assertThat(awaitItem()).isEmpty()
             fakeRepo.soundboardsFlow.emit(boards)
-            awaitItem() // A, B
+            assertThat(awaitItem().map { it.name }).containsExactly(soundboardOne.name, soundboardTwo.name).inOrder()
             viewModel.moveSoundboard(fromIndex = 0, toIndex = 1)
-            awaitItem() // B, A (drag state)
+            assertThat(awaitItem().map { it.name }).containsExactly(soundboardTwo.name, soundboardOne.name).inOrder()
 
             viewModel.persistSoundboardOrder()
 
