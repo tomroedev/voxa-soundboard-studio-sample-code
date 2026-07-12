@@ -9,10 +9,10 @@ import com.voxasoundboard.app.audio.SetupStarterBoardUseCase
 import com.voxasoundboard.app.data.db.entities.Soundboard
 import com.voxasoundboard.app.data.repositories.FakeGeneralUiSettingsRepository
 import com.voxasoundboard.app.data.repositories.FakeProLocalDataSource
+import com.voxasoundboard.app.data.repositories.FakeSoundRepository
 import com.voxasoundboard.app.data.repositories.FakeSoundboardRepository
 import com.voxasoundboard.app.data.repositories.ProRepository
 import com.voxasoundboard.app.monitoring.FakeCrashReporter
-import com.voxasoundboard.app.sync.DetectMissingAudioUseCase
 import com.voxasoundboard.app.sync.RestoreAudioUseCase
 import com.voxasoundboard.app.sync.RestoreResult
 import com.voxasoundboard.app.ui.features.soundboardlist.model.SoundboardListScreenUserMessage
@@ -31,6 +31,7 @@ class SoundboardListViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val fakeRepo = FakeSoundboardRepository()
+    private val fakeSoundRepo = FakeSoundRepository()
     private val fakeGeneralUiSettingsRepo = FakeGeneralUiSettingsRepository()
     private val fakeProRepo = ProRepository(FakeProLocalDataSource())
     private val fakeSoundPlayer = FakeSoundPlayer()
@@ -50,10 +51,11 @@ class SoundboardListViewModelTest {
             setupStarterBoardUseCase = SetupStarterBoardUseCase { },
             deleteSoundboardUseCase = DeleteSoundboardUseCase { id -> fakeRepo.deleteSoundboard(id) },
             soundboardRepo = fakeRepo,
+            soundRepo = fakeSoundRepo,
+            ioDispatcher = mainDispatcherRule.testDispatcher,
             generalUiSettingsRepo = fakeGeneralUiSettingsRepo,
             proRepo = fakeProRepo,
             soundPlayer = fakeSoundPlayer,
-            detectMissingAudioUseCase = DetectMissingAudioUseCase { 0 },
             restoreAudioUseCase = RestoreAudioUseCase { RestoreResult(0, 0) },
             analyticsTracker = fakeAnalyticsTracker,
             crashReporter = fakeCrashReporter
@@ -145,11 +147,12 @@ class SoundboardListViewModelTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `addSoundboard ignores a second call while the first insert is still in flight`() = runTest {
+    fun `addSoundboard ignores further calls while the first insert is still in flight`() = runTest {
         val gate = CompletableDeferred<Unit>()
         fakeRepo.insertGate = gate
 
         viewModel.addSoundboard() // suspends inside the repo insert, guard flag now true
+        viewModel.addSoundboard() // should be dropped by the guard, not queued
         viewModel.addSoundboard() // should be dropped by the guard, not queued
 
         gate.complete(Unit)
