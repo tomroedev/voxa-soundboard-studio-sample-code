@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
@@ -44,6 +45,7 @@ import com.voxasoundboard.app.PlaybackSettingsRoute
 import com.voxasoundboard.app.ProSettingsRoute
 import com.voxasoundboard.app.R
 import com.voxasoundboard.app.data.db.entities.Soundboard
+import com.voxasoundboard.app.sync.toDisplayMessage
 import com.voxasoundboard.app.ui.components.ConfirmDialog
 import com.voxasoundboard.app.ui.components.SoundboardListItemAddNew
 import com.voxasoundboard.app.ui.components.SoundboardListItemEditable
@@ -70,6 +72,7 @@ fun SoundboardListScreen(
 ) {
     // Ambient
     val context = LocalContext.current
+    val resources = LocalResources.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val toolbar = LocalToolbarController.current
 
@@ -228,21 +231,7 @@ fun SoundboardListScreen(
     LaunchedEffect(Unit) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.restoreResult.collect { result ->
-                if (result.restored == 0 && result.notFound == 0) return@collect
-                val message = when {
-                    result.notFound == 0 ->
-                        context.resources.getQuantityString(
-                            R.plurals.message_sounds_restored_all, result.restored, result.restored
-                        )
-                    result.restored == 0 ->
-                        context.resources.getQuantityString(
-                            R.plurals.message_sounds_not_found, result.notFound, result.notFound
-                        )
-                    else ->
-                        context.resources.getQuantityString(
-                            R.plurals.message_sounds_restored_partial, result.restored, result.restored, result.notFound
-                        )
-                }
+                val message = result.toDisplayMessage(resources) ?: return@collect
                 showMessage(message)
             }
         }
