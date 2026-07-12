@@ -75,9 +75,9 @@ class SoundboardRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createStarterBoard(): Long = withContext(Dispatchers.IO) {
+    override suspend fun createStarterBoard(name: String): Long = withContext(Dispatchers.IO) {
         dao.insertSoundboardAtNextPosition(
-            name = "Starter Sounds",
+            name = name,
             isStarterBoard = true,
             starterBoardVersion = 1
         )
@@ -103,4 +103,9 @@ class SoundboardRepositoryImpl @Inject constructor(
 
     override suspend fun getSoundboardCountForSound(soundId: Long): Int =
         withContext(Dispatchers.IO) { dao.getSoundboardCountForSound(soundId) }
+
+    override suspend fun getAllSoundboardsCount(): Int =
+        withContext(Dispatchers.IO) {
+            dao.getSoundboardCount()
+        }
 }
