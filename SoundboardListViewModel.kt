@@ -30,7 +30,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -194,8 +193,8 @@ class SoundboardListViewModel @Inject constructor(
         viewModelScope.launch {
             _isAddingSoundboard.value = true
             try {
-                val currentCount = soundboardRepo.getAllSoundboards().first().size
-                if (!isPro.value && currentCount >= FreeTierLimits.FREE_BOARD_LIMIT) {
+                val soundboardCount = soundboardRepo.getAllSoundboardsCount()
+                if (!isPro.value && soundboardCount >= FreeTierLimits.FREE_BOARD_LIMIT) {
                     _showProRequired.tryEmit(Unit)
                     analyticsTracker.logEvent(
                         Analytics.EVENT_PRO_PAYWALL_SHOWN,
