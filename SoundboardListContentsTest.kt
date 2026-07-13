@@ -19,9 +19,6 @@ class SoundboardListContentsTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun aBoard(id: Long, name: String) =
-        Soundboard(id = id, name = name, position = 0)
-
     private fun setContent(
         soundboards: List<Soundboard> = emptyList(),
         onSoundboardClick: (Long) -> Unit = {},
@@ -52,8 +49,8 @@ class SoundboardListContentsTest {
     fun showsSoundboardNames() {
         setContent(
             soundboards = listOf(
-                aBoard(id = 1, name = "Applause"),
-                aBoard(id = 2, name = "Stadium Crowd"),
+                Soundboard(id = 1, name = "Applause"),
+                Soundboard(id = 2, name = "Stadium Crowd"),
             )
         )
 
@@ -73,7 +70,7 @@ class SoundboardListContentsTest {
     @Test
     fun hidesAddNewItem_whenEditing() {
         setContent(
-            soundboards = listOf(aBoard(id = 1, name = "Applause")),
+            soundboards = listOf(Soundboard(id = 1, name = "Applause")),
             editingSoundboardId = 1L,
         )
 
@@ -85,7 +82,7 @@ class SoundboardListContentsTest {
     @Test
     fun showsEditableField_forBoardBeingEdited() {
         setContent(
-            soundboards = listOf(aBoard(id = 1, name = "Applause")),
+            soundboards = listOf(Soundboard(id = 1, name = "Applause")),
             editingSoundboardId = 1L,
         )
 
@@ -96,8 +93,8 @@ class SoundboardListContentsTest {
     fun showsNormalListItem_forBoardsNotBeingEdited() {
         setContent(
             soundboards = listOf(
-                aBoard(id = 1, name = "Applause"),
-                aBoard(id = 2, name = "Stadium Crowd"),
+                Soundboard(id = 1, name = "Applause"),
+                Soundboard(id = 2, name = "Stadium Crowd"),
             ),
             editingSoundboardId = 1L,
         )
@@ -110,7 +107,7 @@ class SoundboardListContentsTest {
     @Test
     fun showsPlayingCount_whenSoundsAreActive() {
         setContent(
-            soundboards = listOf(aBoard(id = 1, name = "Applause")),
+            soundboards = listOf(Soundboard(id = 1, name = "Applause")),
             playingCountBySoundboard = mapOf(1L to 3),
         )
 
@@ -120,11 +117,11 @@ class SoundboardListContentsTest {
     @Test
     fun hidesPlayingCount_whenNoSoundsAreActive() {
         setContent(
-            soundboards = listOf(aBoard(id = 1, name = "Applause")),
+            soundboards = listOf(Soundboard(id = 1, name = "Applause")),
             playingCountBySoundboard = emptyMap(),
         )
 
-        composeTestRule.onNodeWithContentDescription("3 sounds playing").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("sounds playing", substring = true).assertDoesNotExist()
     }
 
     // Interactions
@@ -133,7 +130,7 @@ class SoundboardListContentsTest {
     fun callsOnSoundboardClick_withSoundboardId_whenBodyClicked() {
         var clickedId: Long? = null
         setContent(
-            soundboards = listOf(aBoard(id = 42L, name = "Applause")),
+            soundboards = listOf(Soundboard(id = 42L, name = "Applause")),
             onSoundboardClick = { clickedId = it },
         )
 
