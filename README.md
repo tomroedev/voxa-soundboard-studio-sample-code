@@ -38,7 +38,7 @@ Some test files are included. These run automatically on Firebase Test Lab via G
 The testing strategy includes:
 
 - Standard JVM tests (including Compose screenshot testing via Paparazzi).
-- Test fakes in place of certain classes, i.e. repositories. I prefer this over mocking, as it gives more control.
+- Test fakes in place of certain classes, i.e. repositories. 
 - Turbine for Flow assertions.
 - Compose UI testing (instrumented testing). This uses Compose semantics-tree assertions to ensure that the correct items are displayed at any given moment.
 
