@@ -68,4 +68,4 @@ The testing strategy includes:
 ## Links
 
 [Play Store link](https://play.google.com/store/apps/details?id=com.voxasoundboard.app)  
-[Full case study](https://scribbleapps.com/case-study.html)
+[Full case study](https://scribbleapps.com/voxa-case-study.html)
